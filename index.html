@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>岡山奢華行旅 V13 | OKAYAMA LUXE</title>
+    
+    <!-- 1. 載入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- 2. 設定 Tailwind 主題顏色 (黑金風格) -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        gold: {
+                            100: '#F9F1D8',
+                            300: '#EEDC9A',
+                            400: '#D4AF37', // 經典金
+                            500: '#C5A028',
+                            600: '#B8860B',
+                            900: '#5C4033',
+                        },
+                        dark: {
+                            900: '#0F0F0F', // 極致黑
+                            800: '#1A1A1A', // 深灰
+                            700: '#262626',
+                        }
+                    },
+                    fontFamily: {
+                        serif: ['Times New Roman', 'serif'],
+                        sans: ['Helvetica', 'PingFang TC', 'Microsoft JhengHei', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- 3. 載入圖示庫 FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- 4. 載入 Vue.js (更換為更穩定的 CDN) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.prod.min.js"></script>
+
+    <style>
+        body {
+            background-color: #0F0F0F;
+            color: #E5E7EB;
+            -webkit-tap-highlight-color: transparent; 
+        }
+        
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* 卡片風格 */
+        .luxury-card {
+            background: linear-gradient(145deg, #1e1e1e, #151515);
+            border: 1px solid rgba(212, 175, 55, 0.2);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+        }
+
+        /* 輸入框風格 */
+        .input-luxury {
+            background: #0F0F0F;
+            border: 1px solid #333;
+            color: #D4AF37;
+            transition: all 0.3s;
+        }
+        .input-luxury:focus {
+            border-color: #D4AF37;
+            outline: none;
+            box-shadow: 0 0 10px rgba(212, 175, 55, 0.2);
+        }
+        
+        /* 圖片預覽 */
+        .img-preview {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 0.5rem;
+        }
+
+        .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+        
+        [v-cloak] { display: none; }
+    </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden">
+
+    <div id="app" class="h-full flex flex-col relative" v-cloak>
+
+        <!-- 頁首 Header -->
+        <header class="bg-dark-800/90 backdrop-blur-md border-b border-gold-400/30 px-6 py-4 z-20 flex justify-between items-center shadow-lg shrink-0">
+            <div>
+                <h1 class="font-serif text-2xl font-bold text-gold-400 tracking-wider">OKAYAMA</h1>
+                <p class="text-[10px] text-gray-400 tracking-[0.2em] uppercase">奢華漫旅 V13</p>
+            </div>
+            <div class="text-right">
+                <div class="text-xs text-gold-300 font-mono">{{ currentDate }}</div>
+                <div class="text-[10px] text-gray-500">Day {{ currentDayIndex + 1 }}</div>
+            </div>
+        </header>
+
+        <!-- 主要內容區 -->
+        <main class="flex-1 overflow-y-auto overflow-x-hidden relative bg-dark-900 pb-24">
+            
+            <!-- 1. PLAN (行程表) -->
+            <div v-if="currentTab === 'plan'" class="p-4 space-y-6">
+                <!-- 天氣預報 -->
+                <div class="luxury-card rounded-xl p-4 flex items-center justify-between border-l-4" 
+                     :class="dailyWeather[currentDayIndex].rain ? 'border-blue-500' : 'border-gold-400'">
+                    <div>
+                        <div class="text-gray-400 text-xs uppercase tracking-widest mb-1">{{ dailyWeather[currentDayIndex].date }} 天氣預測</div>
+                        <div class="text-gray-100 font-bold text-lg flex items-center gap-2">
+                            <i class="fas" :class="dailyWeather[currentDayIndex].icon"></i>
+                            {{ dailyWeather[currentDayIndex].desc }}
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-2xl text-gold-400 font-mono">{{ dailyWeather[currentDayIndex].temp }}</div>
+                        <div class="text-xs text-gray-500">降雨機率: {{ dailyWeather[currentDayIndex].pop }}</div>
+                    </div>
+                </div>
+
+                <!-- 日期選擇 -->
+                <div class="flex space-x-3 overflow-x-auto hide-scrollbar pb-2">
+                    <button v-for="(day, idx) in itinerary" :key="idx" 
+                        @click="currentDayIndex = idx"
+                        class="flex-shrink-0 w-16 h-20 rounded-lg border flex flex-col items-center justify-center transition-all duration-300"
+                        :class="currentDayIndex === idx ? 'bg-gold-400 text-dark-900 border-gold-400 shadow-[0_0_15px_rgba(212,175,55,0.4)]' : 'bg-dark-800 text-gray-500 border-dark-700'">
+                        <span class="text-xs font-bold">{{ day.date }}</span>
+                        <span class="text-lg font-serif font-bold">D{{ idx+1 }}</span>
+                    </button>
+                </div>
+
+                <!-- 行程清單 -->
+                <div class="relative pl-4 border-l border-gold-400/20 space-y-8">
+                    <div v-for="(event, eIdx) in currentItinerary.events" :key="eIdx" class="relative">
+                        <!-- 時間點 -->
+                        <div class="absolute -left-[21px] top-1 w-3 h-3 rounded-full border-2 border-dark-900 transition-all duration-300"
+                             :class="event.important ? 'bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.6)] scale-125' : 'bg-gold-400'"></div>
+                        
+                        <!-- 卡片內容 -->
+                        <div class="luxury-card rounded-lg p-4 ml-2 hover:border-gold-400/50 transition">
+                            <div class="flex justify-between items-start mb-2">
+                                <span class="font-mono text-gold-300 text-lg font-bold">{{ event.time }}</span>
+                                <span v-if="event.tag" class="text-[10px] px-2 py-0.5 rounded border border-gray-600 text-gray-400 uppercase">{{ event.tag }}</span>
+                            </div>
+                            
+                            <h3 class="text-gray-100 font-bold text-lg mb-1">{{ event.title }}</h3>
+                            <p v-if="event.desc" class="text-gray-400 text-sm mb-3 leading-relaxed">{{ event.desc }}</p>
+                            
+                            <!-- 交通詳細資訊 -->
+                            <div v-if="event.transportDetails" class="bg-dark-800 border border-gray-700 rounded-lg p-3 mb-3">
+                                <div class="flex items-center gap-2 mb-2 border-b border-gray-700 pb-1">
+                                    <i class="fas fa-train text-gold-400 text-sm"></i>
+                                    <span class="text-xs font-bold text-gold-100">{{ event.transportDetails.line }}</span>
+                                </div>
+                                <div class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
+                                    <span class="text-gray-500">上車:</span>
+                                    <span class="text-gray-300 font-mono">{{ event.transportDetails.board }}</span>
+                                    <span class="text-gray-500">下車:</span>
+                                    <span class="text-gray-300 font-mono">{{ event.transportDetails.alight }}</span>
+                                    <span class="text-gray-500">費用:</span>
+                                    <span class="text-gold-400 font-bold">{{ event.transportDetails.cost }}</span>
+                                </div>
+                            </div>
+
+                            <!-- 餐廳/備註 -->
+                            <div v-if="event.restaurant || event.note" class="text-xs text-gray-400 space-y-1 mb-3">
+                                <div v-if="event.restaurant"><i class="fas fa-utensils text-gold-600 mr-1"></i> {{ event.restaurant }}</div>
+                                <div v-if="event.note"><i class="fas fa-info-circle text-blue-500 mr-1"></i> {{ event.note }}</div>
+                            </div>
+
+                            <!-- Google Maps 按鈕 -->
+                            <div class="flex gap-2 flex-wrap" v-if="event.location">
+                                <a :href="'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(event.location)" target="_blank"
+                                   class="inline-flex items-center gap-1 text-xs text-gold-400 border border-gold-400/30 px-3 py-1.5 rounded hover:bg-gold-400 hover:text-dark-900 transition">
+                                    <i class="fas fa-map-marker-alt"></i> 地圖導航
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. WALLET (記帳) -->
+            <div v-if="currentTab === 'wallet'" class="p-4 space-y-6">
+                <!-- 總資產 -->
+                <div class="bg-gradient-to-br from-gold-600 to-gold-400 rounded-2xl p-6 text-dark-900 shadow-[0_0_20px_rgba(184,134,11,0.3)]">
+                    <div class="text-sm font-bold opacity-70 uppercase tracking-widest">目前總支出</div>
+                    <div class="flex justify-between items-end mt-1">
+                        <div class="text-4xl font-serif font-bold">NT$ {{ formatNumber(totalTWD) }}</div>
+                        <div class="text-sm font-mono font-bold opacity-80">¥ {{ formatNumber(totalJPY) }}</div>
+                    </div>
+                    <div class="mt-4 flex items-center justify-between bg-dark-900/10 p-2 rounded-lg backdrop-blur-sm">
+                        <span class="text-xs font-bold">匯率 (日幣→台幣)</span>
+                        <input v-model.number="exchangeRate" type="number" step="0.001" class="w-16 bg-transparent text-right font-mono font-bold border-b border-dark-900 focus:outline-none">
+                    </div>
+                </div>
+
+                <!-- 新增記帳 (含圖片) -->
+                <div class="luxury-card p-4 rounded-xl space-y-3">
+                    <div class="flex gap-2">
+                        <input v-model="newItemName" placeholder="品項名稱" class="input-luxury flex-[2] p-2 rounded-lg text-sm">
+                        <input v-model.number="newItemAmount" type="number" placeholder="¥ 日幣金額" class="input-luxury flex-1 p-2 rounded-lg text-sm">
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <label class="flex items-center gap-2 cursor-pointer bg-dark-800 border border-gray-700 px-3 py-2 rounded-lg hover:border-gold-400 transition">
+                            <i class="fas fa-camera text-gold-400"></i>
+                            <span class="text-xs text-gray-300">{{ newItemImage ? '已選圖片' : '拍照/上傳' }}</span>
+                            <input type="file" accept="image/*" class="hidden" @change="handleImageUpload($event, 'expense')">
+                        </label>
+                        <button @click="addExpense" class="bg-dark-700 text-gold-400 border border-gold-400 px-6 py-2 rounded-lg text-sm font-bold hover:bg-gold-400 hover:text-dark-900 transition">新增</button>
+                    </div>
+                </div>
+
+                <!-- 列表 -->
+                <div class="space-y-3 pb-20">
+                    <div v-for="(item, idx) in expenses" :key="idx" class="flex items-center justify-between bg-dark-800 p-3 rounded-lg border-l-2 border-gold-600">
+                        <div class="flex items-center gap-3">
+                            <div v-if="item.image" class="w-10 h-10 rounded border border-gray-600 overflow-hidden flex-shrink-0" @click="showImageModal(item.image)">
+                                <img :src="item.image" class="img-preview">
+                            </div>
+                            <div v-else class="w-10 h-10 rounded bg-dark-700 flex items-center justify-center text-gray-600 flex-shrink-0">
+                                <i class="fas fa-receipt"></i>
+                            </div>
+                            <div>
+                                <div class="text-gray-200 font-bold text-sm">{{ item.item }}</div>
+                                <div class="text-[10px] text-gray-500">{{ item.date }}</div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <div class="text-right">
+                                <div class="text-gold-300 font-mono text-sm">¥ {{ formatNumber(item.amount) }}</div>
+                                <div class="text-[10px] text-gray-500">NT$ {{ formatNumber(Math.round(item.amount * exchangeRate)) }}</div>
+                            </div>
+                            <button @click="removeExpense(idx)" class="text-gray-600 hover:text-red-500"><i class="fas fa-times"></i></button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. LISTS (清單) -->
+            <div v-if="currentTab === 'lists'" class="p-4 space-y-6">
+                <div class="flex bg-dark-800 rounded-lg p-1 border border-dark-700">
+                    <button @click="listMode = 'check'" :class="listMode === 'check' ? 'bg-gold-400 text-dark-900' : 'text-gray-400'" class="flex-1 py-2 rounded-md text-sm font-bold transition">行前準備</button>
+                    <button @click="listMode = 'shop'" :class="listMode === 'shop' ? 'bg-gold-400 text-dark-900' : 'text-gray-400'" class="flex-1 py-2 rounded-md text-sm font-bold transition">購物清單</button>
+                </div>
+
+                <!-- Checklist -->
+                <div v-if="listMode === 'check'" class="space-y-2">
+                    <div v-for="(item, idx) in checklist" :key="idx" 
+                         @click="toggleCheck(idx)"
+                         class="flex items-center p-3 rounded-lg border transition-all cursor-pointer"
+                         :class="item.done ? 'bg-dark-900 border-dark-700 opacity-50' : 'bg-dark-800 border-gold-400/30'">
+                        <div class="w-5 h-5 rounded border flex items-center justify-center mr-3"
+                             :class="item.done ? 'bg-gold-600 border-gold-600' : 'border-gray-500'">
+                            <i v-if="item.done" class="fas fa-check text-dark-900 text-xs"></i>
+                        </div>
+                        <span :class="{'line-through': item.done}" class="text-sm">{{ item.text }}</span>
+                    </div>
+                    <div class="flex gap-2 mt-4">
+                        <input v-model="newCheckItem" placeholder="新增待辦事項..." @keyup.enter="addCheckItem" class="input-luxury flex-1 p-2 rounded-lg text-sm">
+                        <button @click="addCheckItem" class="text-gold-400 px-3"><i class="fas fa-plus"></i></button>
+                    </div>
+                </div>
+
+                <!-- Shopping List (含圖片) -->
+                <div v-if="listMode === 'shop'" class="space-y-4">
+                    <div class="luxury-card p-3 rounded-xl space-y-2">
+                        <div class="flex gap-2 items-center">
+                            <input v-model="newShopItem" placeholder="輸入商品名稱..." class="input-luxury flex-1 p-2 rounded-lg text-sm">
+                            <button @click="addShopItem" class="bg-gold-500 text-dark-900 w-8 h-8 rounded-lg flex items-center justify-center font-bold"><i class="fas fa-plus"></i></button>
+                        </div>
+                        <label class="flex items-center gap-2 cursor-pointer text-xs text-gray-400 hover:text-gold-400">
+                            <i class="fas fa-camera"></i>
+                            <span>{{ newShopImage ? '已選取圖片' : '上傳參考圖片' }}</span>
+                            <input type="file" accept="image/*" class="hidden" @change="handleImageUpload($event, 'shop')">
+                        </label>
+                    </div>
+
+                    <div v-for="(item, idx) in shoppingList" :key="idx" class="luxury-card p-3 rounded-xl flex gap-3 relative">
+                        <button @click="removeShopItem(idx)" class="absolute top-2 right-2 text-gray-600 hover:text-red-500"><i class="fas fa-times"></i></button>
+                        <div v-if="item.image" class="w-16 h-16 rounded border border-gray-700 overflow-hidden flex-shrink-0" @click="showImageModal(item.image)">
+                            <img :src="item.image" class="img-preview">
+                        </div>
+                        <div v-else class="w-16 h-16 rounded bg-dark-900 flex items-center justify-center text-gray-700 flex-shrink-0">
+                            <i class="fas fa-shopping-bag"></i>
+                        </div>
+                        <div class="flex-1 overflow-hidden flex items-center">
+                            <div class="font-bold text-gray-200 truncate">{{ item.text }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4. INFO (資訊) -->
+            <div v-if="currentTab === 'info'" class="p-4 space-y-6">
+                
+                <!-- 航班與住宿 (詳細版) -->
+                <div class="luxury-card p-5 rounded-xl border-l-4 border-gold-500">
+                    <h3 class="text-lg font-bold text-gold-400 mb-3"><i class="fas fa-plane-departure mr-2"></i>航班資訊 (KHH↔OKJ)</h3>
+                    <div class="text-sm text-gray-300 space-y-2 mb-4">
+                        <div class="flex justify-between border-b border-gray-700 pb-2">
+                            <span>去程 (12/12)</span>
+                            <span class="text-white font-mono">IT 262 | 12:40 - 16:30</span>
+                        </div>
+                        <div class="flex justify-between border-b border-gray-700 pb-2">
+                            <span>回程 (12/17)</span>
+                            <span class="text-white font-mono">IT 263 | 17:55 - 20:20</span>
+                        </div>
+                    </div>
+
+                    <h3 class="text-lg font-bold text-gold-400 mb-3 pt-2"><i class="fas fa-hotel mr-2"></i>住宿資訊</h3>
+                    <div class="text-sm text-gray-300 space-y-2">
+                        <div class="font-bold text-white text-base">三井花園飯店岡山 (Mitsui Garden Hotel)</div>
+                        <div class="flex items-center gap-2"><i class="fas fa-hashtag text-gold-600"></i> 確認號: <span class="font-mono text-gold-300">1673854499</span></div>
+                        <div class="flex items-center gap-2"><i class="fas fa-phone text-gold-600"></i> 電話: <a href="tel:+81862351131" class="underline">086-235-1131</a></div>
+                        <div class="flex items-start gap-2"><i class="fas fa-map-marker-alt text-gold-600 mt-1"></i> <span>地址: 岡山市北區車站元町 1-7 (後樂園口/東口)</span></div>
+                        <a href="https://goo.gl/maps/MitsuiGardenOkayama" target="_blank" class="block text-center mt-3 text-xs bg-dark-800 border border-gold-400 text-gold-400 px-3 py-2 rounded hover:bg-gold-400 hover:text-dark-900 transition">導航回飯店</a>
+                    </div>
+                </div>
+
+                <!-- 額外美食推薦 (Tabelog 高分推薦，不重複行程) -->
+                <div class="luxury-card p-5 rounded-xl">
+                    <h3 class="text-lg font-bold text-gold-400 mb-4"><i class="fas fa-star mr-2 text-yellow-500"></i>周邊美食推薦 (額外清單)</h3>
+                    <div class="space-y-4">
+                        <!-- 岡山 -->
+                        <div class="flex justify-between items-start border-b border-gray-700 pb-3">
+                            <div>
+                                <div class="text-xs text-gold-600 mb-1">📍 岡山 | 居酒屋</div>
+                                <div class="text-white font-bold">鳥好 (Toriyoshi)</div>
+                                <div class="text-xs text-gray-400 mt-1">當地人氣老舖，CP值高，必點醋漬沙丁魚。</div>
+                            </div>
+                            <a href="https://maps.app.goo.gl/Toriyoshi" target="_blank" class="text-gold-400 bg-dark-800 p-2 rounded-full"><i class="fas fa-location-arrow"></i></a>
+                        </div>
+                        <div class="flex justify-between items-start border-b border-gray-700 pb-3">
+                            <div>
+                                <div class="text-xs text-gold-600 mb-1">📍 岡山 | 拉麵</div>
+                                <div class="text-white font-bold">食堂 Yamato</div>
+                                <div class="text-xs text-gray-400 mt-1">靈魂美食：中華拉麵+多蜜醬豬排丼。</div>
+                            </div>
+                            <a href="https://maps.app.goo.gl/YamatoShokudo" target="_blank" class="text-gold-400 bg-dark-800 p-2 rounded-full"><i class="fas fa-location-arrow"></i></a>
+                        </div>
+                        <!-- 倉敷 -->
+                        <div class="flex justify-between items-start border-b border-gray-700 pb-3">
+                            <div>
+                                <div class="text-xs text-gold-600 mb-1">📍 倉敷 | 甜點</div>
+                                <div class="text-white font-bold">倉敷桃子 (Kurashiki Momoko)</div>
+                                <div class="text-xs text-gray-400 mt-1">必吃當季水果聖代，總本店氣氛佳。</div>
+                            </div>
+                            <a href="https://maps.app.goo.gl/KurashikiMomoko" target="_blank" class="text-gold-400 bg-dark-800 p-2 rounded-full"><i class="fas fa-location-arrow"></i></a>
+                        </div>
+                        <!-- 姬路 -->
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <div class="text-xs text-gold-600 mb-1">📍 姬路 | 烏龍麵</div>
+                                <div class="text-white font-bold">麺目 (Menme)</div>
+                                <div class="text-xs text-gray-400 mt-1">商店街內的高評價手打烏龍麵。</div>
+                            </div>
+                            <a href="https://maps.app.goo.gl/MenmeUdon" target="_blank" class="text-gold-400 bg-dark-800 p-2 rounded-full"><i class="fas fa-location-arrow"></i></a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 日本緊急聯絡 (按鈕化) -->
+                <div class="luxury-card p-5 rounded-xl border-l-4 border-red-500">
+                    <h3 class="font-bold text-gray-100 mb-3 flex items-center gap-2"><i class="fas fa-phone-volume text-red-500"></i> 日本緊急聯絡</h3>
+                    <div class="grid grid-cols-2 gap-4 text-center">
+                        <a href="tel:110" class="block bg-dark-800 p-4 rounded-lg border border-red-900/50 hover:bg-red-900/20 transition">
+                            <div class="text-red-500 text-3xl font-bold mb-1">110</div>
+                            <div class="text-xs text-gray-300">警察局</div>
+                        </a>
+                        <a href="tel:119" class="block bg-dark-800 p-4 rounded-lg border border-red-900/50 hover:bg-red-900/20 transition">
+                            <div class="text-red-500 text-3xl font-bold mb-1">119</div>
+                            <div class="text-xs text-gray-300">火警 / 救護車</div>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- 行程備案 -->
+                <div class="luxury-card p-5 rounded-xl border-l-4 border-blue-500">
+                    <h3 class="text-xl font-bold text-gray-100 flex items-center gap-2">
+                        <i class="fas fa-umbrella text-blue-500"></i> 雨天/備用行程
+                    </h3>
+                    <div class="mt-3 space-y-3">
+                        <div class="bg-dark-800 p-3 rounded-lg">
+                            <div class="text-gold-300 text-sm font-bold mb-1">🌧️ 雨天備案：倉敷 Outlet</div>
+                            <div class="text-xs text-gray-400">倉敷站北口直結，室內好逛，避雨首選。</div>
+                        </div>
+                        <div class="bg-dark-800 p-3 rounded-lg">
+                            <div class="text-gold-300 text-sm font-bold mb-1">☀️ 晴天備案：備中松山城</div>
+                            <div class="text-xs text-gray-400">若不想去兒島看海，可改去爬山看天空之城。</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+
+        <!-- 底部導航 -->
+        <nav class="bg-dark-800 border-t border-gold-600/30 fixed bottom-0 w-full z-50 pb-safe">
+            <div class="flex justify-around items-center h-16">
+                <button @click="currentTab = 'plan'" :class="currentTab === 'plan' ? 'text-gold-400' : 'text-gray-600'" class="flex flex-col items-center w-14 transition-colors">
+                    <i class="fas fa-calendar-alt text-lg mb-1"></i>
+                    <span class="text-[9px] uppercase tracking-wider">行程</span>
+                </button>
+                <button @click="currentTab = 'wallet'" :class="currentTab === 'wallet' ? 'text-gold-400' : 'text-gray-600'" class="flex flex-col items-center w-14 transition-colors">
+                    <i class="fas fa-wallet text-lg mb-1"></i>
+                    <span class="text-[9px] uppercase tracking-wider">記帳</span>
+                </button>
+                <button @click="currentTab = 'lists'" :class="currentTab === 'lists' ? 'text-gold-400' : 'text-gray-600'" class="flex flex-col items-center w-14 transition-colors">
+                    <i class="fas fa-list-ul text-lg mb-1"></i>
+                    <span class="text-[9px] uppercase tracking-wider">清單</span>
+                </button>
+                <button @click="currentTab = 'info'" :class="currentTab === 'info' ? 'text-gold-400' : 'text-gray-600'" class="flex flex-col items-center w-14 transition-colors">
+                    <i class="fas fa-info-circle text-lg mb-1"></i>
+                    <span class="text-[9px] uppercase tracking-wider">資訊</span>
+                </button>
+            </div>
+        </nav>
+
+        <!-- 圖片放大 Modal -->
+        <div v-if="modalImage" class="fixed inset-0 bg-black/95 z-[60] flex items-center justify-center p-4" @click="modalImage = null">
+            <img :src="modalImage" class="max-w-full max-h-[80vh] rounded shadow-2xl border border-gold-600">
+            <button class="absolute top-6 right-6 text-white text-3xl"><i class="fas fa-times"></i></button>
+        </div>
+
+    </div>
+
+    <!-- Vue.js 邏輯 -->
+    <script>
+        const { createApp, ref, computed, watch, onMounted } = Vue;
+
+        createApp({
+            setup() {
+                const currentTab = ref('plan');
+                const currentDayIndex = ref(0);
+                const exchangeRate = ref(0.22);
+                const modalImage = ref(null);
+                
+                // 計算機
+                const calcInput = ref('');
+                const calcResult = ref(null);
+
+                // 輸入
+                const newItemName = ref('');
+                const newItemAmount = ref('');
+                const newItemImage = ref(null);
+                const listMode = ref('check');
+                const newCheckItem = ref('');
+                const newShopItem = ref('');
+                const newShopImage = ref(null);
+
+                // 日期格式化
+                const currentDate = ref(new Date().toLocaleDateString('zh-TW', { weekday: 'short', month: 'short', day: 'numeric' }));
+                
+                // 天氣資料
+                const dailyWeather = [
+                    { date: '12/12', temp: '8°C - 13°C', cond: '晴時多雲', icon: 'fa-cloud-sun', pop: '10%' },
+                    { date: '12/13', temp: '9°C - 12°C', cond: '陰短暫雨', icon: 'fa-cloud-showers-heavy', pop: '60%', rain: true }, 
+                    { date: '12/14', temp: '5°C - 11°C', cond: '多雲', icon: 'fa-cloud', pop: '20%' },
+                    { date: '12/15', temp: '4°C - 10°C', cond: '晴天', icon: 'fa-sun', pop: '0%' },
+                    { date: '12/16', temp: '3°C - 12°C', cond: '晴朗', icon: 'fa-sun', pop: '0%' },
+                    { date: '12/17', temp: '5°C - 11°C', cond: '多雲時晴', icon: 'fa-cloud-sun', pop: '10%' },
+                ];
+
+                // 行程資料
+                const itinerary = ref([
+                    { 
+                        date: '12/12', 
+                        events: [ 
+                            { time: '12:40', title: '高雄起飛 (KHH)', desc: '台灣虎航 IT 262', tag: '航班', important: true }, 
+                            { time: '16:30', title: '抵達岡山機場', desc: '辦理入境約40-50分鐘', location: 'Okayama Momotaro Airport' }, 
+                            { time: '17:30', title: '搭乘利木津巴士', desc: '前往岡山車站西口', tag: '交通', transportDetails: { line: '利木津巴士', board: '岡山機場 (岡山空港)', alight: '岡山車站西口 (岡山駅西口)', cost: '780円' }, important: true }, 
+                            { time: '18:20', title: '飯店 Check-in', desc: '三井花園飯店 (東口)。確認號: 1673854499', location: 'Mitsui Garden Hotel Okayama', important: true }, 
+                            { time: '19:00', title: '晚餐：味司 野村', desc: '岡山名物：多蜜醬豬排丼', location: 'Ajitsukasa Nomura', restaurant: '味司野村' }, 
+                            { time: '20:30', title: 'AEON Mall 採買', desc: '超市買水、水果', location: 'Aeon Mall Okayama' } 
+                        ] 
+                    },
+                    { 
+                        date: '12/13', 
+                        events: [ 
+                            { time: '09:30', title: 'JR前往兒島', desc: '快速 Marine Liner', tag: '交通', transportDetails: { line: 'JR 瀨戶大橋線', board: '岡山 (Okayama)', alight: '兒島 (Kojima)', cost: '510円' } }, 
+                            { time: '10:00', title: '兒島牛仔褲街', desc: '丹寧商店、藍色霜淇淋', location: 'Kojima Jeans Street' }, 
+                            { time: '12:30', title: '午餐：仙太鮨', desc: '在地新鮮壽司', location: 'Senta Sushi', restaurant: '仙太鮨' }, 
+                            { time: '14:00', title: '巴士前往鷲羽山', desc: '夕陽鑑賞巴士', tag: '交通', transportDetails: { line: '下電巴士 (鷲羽山線)', board: '兒島站 (児島駅)', alight: '鷲羽山展望台', cost: '260円' } }, 
+                            { time: '14:30', title: '鷲羽山展望台', desc: '眺望瀨戶大橋絕景', location: 'Washuzan Observatory', important: true }, 
+                            { time: '18:30', title: '晚餐：麺屋 匠', desc: '岡山車站一番街拉麵', location: 'Menya Takumi', restaurant: '麺屋 匠' } 
+                        ] 
+                    },
+                    { 
+                        date: '12/14', 
+                        events: [ 
+                            { time: '08:30', title: '新幹線前往姬路', desc: '20分鐘車程', tag: '交通', transportDetails: { line: '山陽新幹線', board: '岡山 (Okayama)', alight: '姬路 (Himeji)', cost: '3,280円 (自由席)' }, important: true }, 
+                            { time: '09:10', title: '姬路城', desc: '世界遺產白鷺城', location: 'Himeji Castle' }, 
+                            { time: '12:00', title: '午餐：Tamagoya', desc: '高級雞蛋拌飯', location: 'Tamagoya Himeji', restaurant: 'Tamagoya' }, 
+                            { time: '13:30', title: '書寫山圓教寺', desc: '末代武士場景', location: 'Shoshazan Engyoji', transportDetails: { line: '神姬巴士 8號 + 纜車', board: '姬路城前', alight: '書寫山索道站', cost: '套票約 1700円' } }, 
+                            { time: '18:00', title: '晚餐：灘菊', desc: '姬路關東煮', location: 'Nadagiku Kappatei', restaurant: '灘菊' },
+                            { time: '19:30', title: '返回岡山', desc: '省錢方案', tag: '交通', transportDetails: { line: 'JR 山陽本線 (新快速)', board: '姬路 (Himeji)', alight: '岡山 (Okayama)', cost: '1,340円' } } 
+                        ] 
+                    },
+                    { 
+                        date: '12/15', 
+                        events: [ 
+                            { time: '09:15', title: 'JR前往倉敷', desc: '17分鐘車程', tag: '交通', transportDetails: { line: 'JR 山陽本線', board: '岡山 (Okayama)', alight: '倉敷 (Kurashiki)', cost: '330円' } }, 
+                            { time: '10:00', title: '購買遊船票', desc: '倉敷館觀光案內所', location: 'Kurashiki-kan' }, 
+                            { time: '10:30', title: '倉敷川遊船', desc: '體驗江戶風情', location: 'Kurashiki Bikan Historical Quarter' }, 
+                            { time: '12:30', title: '午餐：三宅商店', desc: '町家咖哩飯', location: 'Miyake Shoten', restaurant: '三宅商店' }, 
+                            { time: '16:00', title: '三井 Outlet 購物', desc: '倉敷車站北口', location: 'Mitsui Outlet Park Kurashiki' },
+                            { time: '18:30', title: '晚餐：富來屋', desc: '千屋牛料理', location: 'Furaiya', restaurant: '富來屋' } 
+                        ] 
+                    },
+                    { 
+                        date: '12/16', 
+                        events: [ 
+                            { time: '09:30', title: '搭乘路面電車', desc: '前往城下站', tag: '交通', transportDetails: { line: '路面電車 (東山線)', board: '岡山站前', alight: '城下', cost: '140円' } }, 
+                            { time: '10:00', title: '後樂園 & 岡山城', desc: '日本三大名園 + 烏城', location: 'Okayama Korakuen' }, 
+                            { time: '12:30', title: '午餐：吾妻壽司', desc: '車站2F散壽司', location: 'Azuma Sushi Okayama', restaurant: '吾妻壽司' }, 
+                            { time: '14:24', title: '前往吉備津', desc: '桃太郎線', tag: '交通', transportDetails: { line: 'JR 吉備線', board: '岡山 (Okayama)', alight: '吉備津 (Kibitsu)', cost: '210円' } }, 
+                            { time: '14:50', title: '吉備津神社', desc: '400m 迴廊', location: 'Kibitsu Shrine' }, 
+                            { time: '17:00', title: '市區最後採買', desc: '唐吉訶德、Bic Camera', location: 'Don Quijote Okayama' }, 
+                            { time: '19:00', title: '晚餐：燒肉達人', desc: '慶祝最後一晚', location: 'Yakiniku Tatsujin', restaurant: '燒肉達人' } 
+                        ] 
+                    },
+                    { 
+                        date: '12/17', 
+                        events: [ 
+                            { time: '10:00', title: '退房 Check-out', desc: '行李寄放飯店' }, 
+                            { time: '10:15', title: '奉還町商店街', desc: '懷舊老街散步', location: 'Houkancho Shopping Street' }, 
+                            { time: '11:00', title: '購買伴手禮', desc: 'Sun Station Terrace', location: 'Sun Station Terrace Okayama' }, 
+                            { time: '13:00', title: '回飯店拿行李', desc: '前往西口巴士站' }, 
+                            { time: '15:10', title: '前往機場', desc: '務必準時搭乘', tag: '交通', transportDetails: { line: '利木津巴士', board: '岡山車站西口 21號月台', alight: '岡山機場', cost: '780円' }, important: true }, 
+                            { time: '17:55', title: '岡山起飛 (OKJ)', desc: '台灣虎航 IT 263', tag: '航班', important: true } 
+                        ] 
+                    }
+                ]);
+
+                // 使用者資料 (預設)
+                const expenses = ref([]);
+                const checklist = ref([
+                    { text: '護照', done: false },
+                    { text: '日幣兌換', done: false },
+                    { text: '行動電源', done: false },
+                    { text: '網卡/漫遊', done: false },
+                    { text: 'Visit Japan Web', done: false },
+                    { text: '電子機票存檔', done: false },
+                ]);
+                const shoppingList = ref([
+                    { text: '廣榮堂 吉備糰子', isLink: false, image: null },
+                    { text: '岡山白桃果凍', isLink: false, image: null },
+                ]);
+
+                // 圖片處理
+                const handleImageUpload = (event, type) => {
+                    const file = event.target.files[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        const img = new Image();
+                        img.onload = () => {
+                            const canvas = document.createElement('canvas');
+                            const ctx = canvas.getContext('2d');
+                            const MAX_WIDTH = 600;
+                            const MAX_HEIGHT = 600;
+                            let width = img.width;
+                            let height = img.height;
+                            if (width > height) { if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; } } 
+                            else { if (height > MAX_HEIGHT) { width *= MAX_HEIGHT / height; height = MAX_HEIGHT; } }
+                            canvas.width = width;
+                            canvas.height = height;
+                            ctx.drawImage(img, 0, 0, width, height);
+                            const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
+                            if (type === 'expense') newItemImage.value = dataUrl;
+                            else if (type === 'shop') newShopImage.value = dataUrl;
+                        };
+                        img.src = e.target.result;
+                    };
+                    reader.readAsDataURL(file);
+                };
+
+                const calculate = () => {
+                    try {
+                        const result = Function('"use strict";return (' + calcInput.value + ')')();
+                        calcResult.value = Math.round(result * exchangeRate.value);
+                    } catch (e) { calcResult.value = "Error"; }
+                };
+
+                const formatNumber = (num) => (num || 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+                const totalTWD = computed(() => Math.round(expenses.value.reduce((acc, item) => acc + (item.amount * exchangeRate.value), 0)));
+                const totalJPY = computed(() => expenses.value.reduce((acc, item) => acc + item.amount, 0));
+
+                const addExpense = () => {
+                    if (!newItemName.value || !newItemAmount.value) return;
+                    expenses.value.unshift({ item: newItemName.value, amount: newItemAmount.value, image: newItemImage.value, date: new Date().toLocaleDateString() });
+                    newItemName.value = ''; newItemAmount.value = ''; newItemImage.value = null;
+                };
+                const removeExpense = (index) => { if(confirm("確定刪除？")) expenses.value.splice(index, 1); };
+
+                const addCheckItem = () => { if(newCheckItem.value) { checklist.value.push({ text: newCheckItem.value, done: false }); newCheckItem.value = ''; }};
+                const toggleCheck = (index) => { checklist.value[index].done = !checklist.value[index].done; };
+
+                const addShopItem = () => { 
+                    if(newShopItem.value) { 
+                        const isUrl = /^(http|https):\/\/[^ "]+$/.test(newShopItem.value);
+                        shoppingList.value.push({ text: newShopItem.value, isLink: isUrl, image: newShopImage.value }); 
+                        newShopItem.value = ''; newShopImage.value = null;
+                    }
+                };
+                const removeShopItem = (index) => { if(confirm("確定移除？")) shoppingList.value.splice(index, 1); };
+                const showImageModal = (src) => { modalImage.value = src; };
+
+                // 資料儲存
+                onMounted(() => {
+                    try {
+                        const savedExpenses = localStorage.getItem('okayama_expenses');
+                        const savedChecklist = localStorage.getItem('okayama_checklist');
+                        const savedShopping = localStorage.getItem('okayama_shopping');
+                        const savedRate = localStorage.getItem('okayama_rate');
+                        if (savedExpenses) expenses.value = JSON.parse(savedExpenses);
+                        if (savedChecklist) checklist.value = JSON.parse(savedChecklist);
+                        if (savedShopping) shoppingList.value = JSON.parse(savedShopping);
+                        if (savedRate) exchangeRate.value = parseFloat(savedRate);
+                    } catch (e) { localStorage.clear(); }
+                });
+
+                watch(expenses, (newVal) => localStorage.setItem('okayama_expenses', JSON.stringify(newVal)), { deep: true });
+                watch(checklist, (newVal) => localStorage.setItem('okayama_checklist', JSON.stringify(newVal)), { deep: true });
+                watch(shoppingList, (newVal) => localStorage.setItem('okayama_shopping', JSON.stringify(newVal)), { deep: true });
+                watch(exchangeRate, (newVal) => localStorage.setItem('okayama_rate', newVal));
+
+                const currentItinerary = computed(() => itinerary.value[currentDayIndex.value]);
+
+                return {
+                    currentTab, currentDayIndex, itinerary, currentItinerary,
+                    expenses, checklist, shoppingList, currentDate, exchangeRate,
+                    calcInput, calcResult, calculate, formatNumber, totalTWD, totalJPY,
+                    newItemName, newItemAmount, newItemImage, addExpense, removeExpense,
+                    listMode, newCheckItem, addCheckItem, toggleCheck,
+                    newShopItem, newShopImage, addShopItem, removeShopItem,
+                    handleImageUpload, modalImage, showImageModal, dailyWeather
+                };
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
